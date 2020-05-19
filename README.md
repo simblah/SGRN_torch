@@ -3,3 +3,7 @@ Implementation of [Spatial-aware Graph Relation Network for Large-scale Object D
 
 This code is modified based on [ruotianluo](https://github.com/ruotianluo/pytorch-faster-rcnn) Faster R-CNN code.
 
+I implement code only for Faster R-CNN / Visual Genome Dataset / Resnet101 backbone.
+
+1. Prepare Dataset
+1.1. Download Visual Genome Image File
