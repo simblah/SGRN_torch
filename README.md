@@ -13,6 +13,6 @@ I implement code only for Faster R-CNN / Visual Genome Dataset / Resnet101 backb
 
 
 2. Requirements
- torch > 1.4.0
- torchvision > 0.5.0
- [torch-geometric](https://github.com/rusty1s/pytorch_geometric)
+ - torch > 1.4.0
+ - torchvision > 0.5.0
+ - [torch-geometric](https://github.com/rusty1s/pytorch_geometric)
