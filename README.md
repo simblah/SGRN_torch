@@ -6,11 +6,10 @@ This code is modified based on [ruotianluo](https://github.com/ruotianluo/pytorc
 I implement code only for Faster R-CNN / Visual Genome Dataset / Resnet101 backbone.
 
 1. Prepare Dataset
-
-1.1. Download Annotation File [link]()
-1.2. Unzip zip file to $your_data_path\vg
-1.3. Download Visual Genome Image Files [zip1](https://cs.stanford.edu/people/rak248/VG_100K_2/images.zip) [zip2](https://cs.stanford.edu/people/rak248/VG_100K_2/images2.zip)
-1.4. Unzip 2 zip files to $your_data_path\vg\JPEGImages\*.jpg
+- Download Annotation File [link](https://drive.google.com/open?id=1l1MDX5xrXYzLq8zsjn-NSW-JmSCvWUy1)
+- Unzip zip file to $your_data_path\vg
+- Download Visual Genome Image Files [zip1](https://cs.stanford.edu/people/rak248/VG_100K_2/images.zip) [zip2](https://cs.stanford.edu/people/rak248/VG_100K_2/images2.zip)
+- Unzip 2 zip files to $your_data_path\vg\JPEGImages\*.jpg
 
 
 2. Requirements
