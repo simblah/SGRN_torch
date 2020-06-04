@@ -26,9 +26,22 @@ I implement code only for Faster R-CNN / Visual Genome Dataset / Resnet101 backb
 
 ## Train
  - Train Faster RCNN
- python trainval_net.py --cfg "experiments/cfgs/res101.yml" --tag "FRCNN" --net "res101" --weight $your_preweight_path\res101.pth --iters 2400000
- - Train SGRN
- python trainval_net.py --cfg "experiments/cfgs/res101_vg.yml" --tag "SGRN" --net "SGRN" --weight "output/res101/visual_genome_train_diff/FRCNN/res101_faster_rcnn_iter_1200000.pth" --iters 1200000
-
-
+```Shell
+python tools/trainval_net.py --cfg "experiments/cfgs/res101.yml" --tag "FRCNN" --net "res101" --weight $your_preweight_path\res101.pth --iters 2400000
+```
+- Train SGRN
+```Shell
+python tools/trainval_net.py --cfg "experiments/cfgs/res101_gcn.yml" --tag "SGRN" --net "SGRN" --weight "output/res101/visual_genome_train_diff/FRCNN/res101_faster_rcnn_iter_1200000.pth" --iters 1200000
+```
 ------------------------------------------------------------------------
+## Test
+ - Test Faster RCNN
+```Shell
+python tools/test_net.py --cfg "experiments/cfgs/res101.yml" --model output/res101/visual_genome_train_diff/FRCNN/res101_faster_rcnn_iter_1200000.pth"  --net "res101"
+```
+- Test SGRN
+```Shell
+python tools/test_net.py --cfg "experiments/cfgs/res101_gcn.yml" --model output/res101/visual_genome_train_diff/SGRN/res101_faster_rcnn_iter_1200000.pth"  --net "SGRN"
+```
+------------------------------------------------------------------------
+## 
