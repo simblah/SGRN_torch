@@ -14,7 +14,7 @@ I implement code only for Faster R-CNN / Visual Genome Dataset / Resnet101 backb
 -->  Unzip 2 zip files to $your_data_path/vg/JPEGImages/*.jpg
 - Download Imagenet pre-trained weight for resnet 101 [link](https://drive.google.com/file/d/1HXXVHADWy3mjegvtTtzpmdj1IdvnPL16/view?usp=sharing)
 -->  Copy file to $your_preweight_path/
-- Download trained weight of Faster RCNN [link](https://drive.google.com/file/d/1K85D9rJVqOId52sLTEMw9XAUZRf4pCB-/view?usp=sharing)
+- Download trained weight of Faster RCNN [link](https://drive.google.com/file/d/11k9WAGB5YmYwKDUu7kLW5E5q22AnOhzW/view?usp=sharing)
 -->  Copy file to $your_weight_path/FRCNN/ and use it for training SGRN module
 ------------------------------------------------------------------------
 
@@ -50,4 +50,6 @@ python tools/test_net.py --cfg "experiments/cfgs/res101_gcn.yml" --model "your_w
 ```
 
 ------------------------------------------------------------------------
-## 
+## Result
+Faster RCNN Mean Average Precision : 11.2
+SGRN Mean Average Precision : 11.5
