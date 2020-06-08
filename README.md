@@ -51,5 +51,5 @@ python tools/test_net.py --cfg "experiments/cfgs/res101_gcn.yml" --model "your_w
 
 ------------------------------------------------------------------------
 ## Result
-Faster RCNN Mean Average Precision : 11.2
-SGRN Mean Average Precision : 11.5
+- Faster RCNN Mean Average Precision : 11.2
+- Faster RCNN with SGRN Mean Average Precision : 11.5
