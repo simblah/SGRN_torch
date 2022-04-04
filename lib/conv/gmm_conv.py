@@ -1,31 +1,57 @@
-import torch
-from torch.nn import Parameter
-from torch_geometric.nn.conv import MessagePassing
-from .inits import reset, glorot, zeros
+from typing import Tuple, Union
 
-EPS = 1e-15
+import torch
+from torch import Tensor
+from torch.nn import Parameter
+
+from torch_geometric.nn.conv import MessagePassing
+from torch_geometric.nn.dense.linear import Linear
+from torch_geometric.typing import Adj, OptPairTensor, OptTensor, Size
+
+from .inits import glorot, zeros
 
 
 class GMMConv(MessagePassing):
-    def __init__(self,
-                 in_channels,
-                 out_channels,
-                 dim,
-                 kernel_size,
-                 bias=True,
-                 **kwargs):
-        super(GMMConv, self).__init__(aggr='add', **kwargs)
+    def __init__(self, in_channels: Union[int, Tuple[int, int]],
+                 out_channels: int, dim: int, kernel_size: int,
+                 separate_gaussians: bool = False, aggr: str = 'mean',
+                 root_weight: bool = True, bias: bool = True, **kwargs):
+        super().__init__(aggr=aggr, **kwargs)
 
         self.in_channels = in_channels
         self.out_channels = out_channels
         self.dim = dim
         self.kernel_size = kernel_size
+        self.separate_gaussians = separate_gaussians
+        self.root_weight = root_weight
 
-        self.lin = torch.nn.Linear(in_channels,
-                                   out_channels * kernel_size,
-                                   bias=False)
-        self.mu = Parameter(torch.Tensor(kernel_size, dim))
-        self.sigma = Parameter(torch.Tensor(kernel_size, dim))
+        if isinstance(in_channels, int):
+            in_channels = (in_channels, in_channels)
+        self.rel_in_channels = in_channels[0]
+
+        if in_channels[0] > 0:
+            self.g = Parameter(
+                Tensor(in_channels[0], out_channels * kernel_size))
+
+            if not self.separate_gaussians:
+                self.mu = Parameter(Tensor(kernel_size, dim))
+                self.sigma = Parameter(Tensor(kernel_size, dim))
+            if self.separate_gaussians:
+                self.mu = Parameter(
+                    Tensor(in_channels[0], out_channels, kernel_size, dim))
+                self.sigma = Parameter(
+                    Tensor(in_channels[0], out_channels, kernel_size, dim))
+        else:
+            self.g = torch.nn.parameter.UninitializedParameter()
+            self.mu = torch.nn.parameter.UninitializedParameter()
+            self.sigma = torch.nn.parameter.UninitializedParameter()
+            self._hook = self.register_forward_pre_hook(
+                self.initialize_parameters)
+
+        if root_weight:
+            self.root = Linear(in_channels[1], out_channels, bias=False,
+                               weight_initializer='glorot')
+
         if bias:
             self.bias = Parameter(torch.Tensor(out_channels))
         else:
@@ -34,33 +60,84 @@ class GMMConv(MessagePassing):
         self.reset_parameters()
 
     def reset_parameters(self):
-        glorot(self.mu)
-        glorot(self.sigma)
+        if not isinstance(self.g, torch.nn.UninitializedParameter):
+            glorot(self.g)
+            glorot(self.mu)
+            glorot(self.sigma)
+        if self.root_weight:
+            self.root.reset_parameters()
         zeros(self.bias)
-        reset(self.lin)
 
-    def forward(self, x, edge_index, pseudo):
-        x = x.unsqueeze(-1) if x.dim() == 1 else x
-        pseudo = pseudo.unsqueeze(-1) if pseudo.dim() == 1 else pseudo
+    def forward(self, x: Union[Tensor, OptPairTensor], edge_index: Adj,
+                edge_attr: OptTensor = None, size: Size = None):
+        """"""
+        if isinstance(x, Tensor):
+            x: OptPairTensor = (x, x)
 
-        out = self.lin(x).view(-1, self.kernel_size, self.out_channels)
-        out = self.propagate(edge_index, x=out, pseudo=pseudo)
+        # propagate_type: (x: OptPairTensor, edge_attr: OptTensor)
+        if not self.separate_gaussians:
+            out: OptPairTensor = (torch.matmul(x[0], self.g), x[1])
+            out = self.propagate(edge_index, x=out, edge_attr=edge_attr,
+                                 size=size)
+        else:
+            out = self.propagate(edge_index, x=x, edge_attr=edge_attr,
+                                 size=size)
+
+        x_r = x[1]
+        if x_r is not None and self.root is not None:
+            out += self.root(x_r)
 
         if self.bias is not None:
-            out = out + self.bias
+            out += self.bias
+
         return out
 
-    def message(self, x_j, pseudo):
-        (E, D), K = pseudo.size(), self.mu.size(0)
+    def message(self, x_j: Tensor, edge_attr: Tensor):
+        EPS = 1e-15
+        F, M = self.rel_in_channels, self.out_channels
+        (E, D), K = edge_attr.size(), self.kernel_size
 
-        gaussian = -0.5 * (pseudo.view(E, 1, D) - self.mu.view(1, K, D))**2
-        gaussian = gaussian / (EPS + self.sigma.view(1, K, D)**2)
-        gaussian = torch.exp(gaussian.sum(dim=-1, keepdim=True))  # [E, K, 1]
+        if not self.separate_gaussians:
+            gaussian = -0.5 * (edge_attr.view(E, 1, D) -
+                               self.mu.view(1, K, D)).pow(2)
+            gaussian = gaussian / (EPS + self.sigma.view(1, K, D).pow(2))
+            gaussian = torch.exp(gaussian.sum(dim=-1))  # [E, K]
 
-        return (x_j * gaussian).sum(dim=1)
+            return (x_j.view(E, K, M) * gaussian.view(E, K, 1)).sum(dim=-2)
 
-    def __repr__(self):
-        return '{}({}, {}, kernel_size={})'.format(self.__class__.__name__,
-                                                   self.in_channels,
-                                                   self.out_channels,
-                                                   self.kernel_size)
+        else:
+            gaussian = -0.5 * (edge_attr.view(E, 1, 1, 1, D) -
+                               self.mu.view(1, F, M, K, D)).pow(2)
+            gaussian = gaussian / (EPS + self.sigma.view(1, F, M, K, D).pow(2))
+            gaussian = torch.exp(gaussian.sum(dim=-1))  # [E, F, M, K]
+
+            gaussian = gaussian * self.g.view(1, F, M, K)
+            gaussian = gaussian.sum(dim=-1)  # [E, F, M]
+
+            return (x_j.view(E, F, 1) * gaussian).sum(dim=-2)  # [E, M]
+
+    @torch.no_grad()
+    def initialize_parameters(self, module, input):
+        if isinstance(self.g, torch.nn.parameter.UninitializedParameter):
+            x = input[0][0] if isinstance(input, tuple) else input[0]
+            in_channels = x.size(-1)
+            out_channels, kernel_size = self.out_channels, self.kernel_size
+            self.g.materialize((in_channels, out_channels * kernel_size))
+            if not self.separate_gaussians:
+                self.mu.materialize((kernel_size, self.dim))
+                self.sigma.materialize((kernel_size, self.dim))
+            else:
+                self.mu.materialize(
+                    (in_channels, out_channels, kernel_size, self.dim))
+                self.sigma.materialize(
+                    (in_channels, out_channels, kernel_size, self.dim))
+            glorot(self.g)
+            glorot(self.mu)
+            glorot(self.sigma)
+
+        module._hook.remove()
+        delattr(module, '_hook')
+
+    def __repr__(self) -> str:
+        return (f'{self.__class__.__name__}({self.in_channels}, '
+                f'{self.out_channels}, dim={self.dim})')
