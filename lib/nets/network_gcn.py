@@ -353,12 +353,6 @@ class Network(nn.Module):
         self.cls_score_net = nn.Linear(self._fc7_channels, self._num_classes)
         self.bbox_pred_net = nn.Linear(self._fc7_channels, self._num_classes * 4)
 
-        for p in self.rpn_net.parameters():
-            p.requires_grad = False
-        for p in self.rpn_cls_score_net.parameters():
-            p.requires_grad = False
-        for p in self.rpn_bbox_pred_net.parameters():
-            p.requires_grad = False
         for p in self.cls_score_net.parameters():
             p.requires_grad = False
         for p in self.bbox_pred_net.parameters():
